@@ -41,3 +41,8 @@ Release
 *.old
 *.componentinfo.*
 *.atsuo
+
+
+#Visual Studio
+*.db
+*.ipch
