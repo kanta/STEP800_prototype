@@ -14,6 +14,8 @@
 #include <SparkFunAutoDriver.h>
 #include "delay.h"
 
+#define NUM_L6470 (8)
+
 #define TARGET_ALL 255
 #define TARGET_FIRST 1
 #define TARGET_LAST 8
@@ -27,8 +29,14 @@ unsigned int outPort = 20100;
 unsigned int inPort = 20000;
 
 EthernetUDP Udp;
-
+boolean isDestIpSet = false;
 #define W5500_RESET A3
+
+#define POLL_DURATION   10
+bool swState[NUM_L6470] = { 0,0,0,0,0,0,0,0 };
+bool busy[NUM_L6470] = { 0,0,0,0,0,0,0,0 };
+bool dir[NUM_L6470] = { 0,0,0,0,0,0,0,0 };
+uint8_t motorStatus[NUM_L6470] = { 0,0,0,0,0,0,0,0 };
 
 // 74HC165 shift register switch input
 #define MISO3	3 // SERCOM2/PAD[1]
@@ -46,7 +54,7 @@ SPIClass L6470SPI(&sercom3, L6470_MISO, L6470_SCK, L6470_MOSI, SPI_PAD_0_SCK_3, 
 
 #define L6470_CS_PIN A0
 #define L6470_RESET_PIN A2
-#define NUM_L6470 (8)
+
 
 AutoDriver L6470[] = {
 	AutoDriver(7, L6470_CS_PIN, L6470_RESET_PIN),
@@ -140,16 +148,12 @@ void setup()
 		L6470[i].setVoltageComp(VS_COMP_DISABLE);
 		L6470[i].hardHiZ();
 		L6470[i].setSwitchMode(SW_USER);
-		//L6470[i].setSwitchMode(SW_HARD_STOP);
 		L6470[i].setOscMode(EXT_16MHZ_OSCOUT_INVERT);
-		//L6470[i].setOscMode(INT_16MHZ);
 		L6470[i].setRunKVAL(64);
 		L6470[i].setAccKVAL(64);
 		L6470[i].setDecKVAL(64);
 		L6470[i].setHoldKVAL(32);
-		L6470[i].setParam(ALARM_EN, 0x8F); // disable ADC UVLO (divider not populated),
-		// disable stall detection (not configured),
-		// disable switch (not using as hard stop)
+		L6470[i].setParam(ALARM_EN, 0xFF); 
 		delay(1);
 		L6470[i].getStatus(); // clears error flags
 		digitalWrite(ledPin, HIGH);
@@ -176,7 +180,8 @@ void setup()
 
 }
 
-void sendOneData(char* address, int32_t data) {
+void sendOneDatum(char* address, int32_t data) {
+	if (!isDestIpSet) { return; }
 	OSCMessage newMes(address);
 	newMes.add((int32_t)data);
 	Udp.beginPacket(destIp, outPort);
@@ -185,7 +190,8 @@ void sendOneData(char* address, int32_t data) {
 	newMes.empty();
 }
 
-void sendOneData(char* address, uint8_t target, int32_t data) {
+void sendTwoData(char* address, int32_t target, int32_t data) {
+	if (!isDestIpSet) { return; }
 	OSCMessage newMes(address);
 	newMes.add((int32_t)target);
 	newMes.add((int32_t)data);
@@ -195,17 +201,22 @@ void sendOneData(char* address, uint8_t target, int32_t data) {
 	newMes.empty();
 }
 
-void setDestIp(OSCMessage& msg, int addrOffset) {
-	boolean newFlag = (destIp[3] != Udp.remoteIP()[3]);
-	destIp = Udp.remoteIP();
-	OSCMessage newMes("/newDestIp");
-	newMes.add((int32_t)destIp[3]);
-	newMes.add((int32_t)newFlag);
+void sendIdFloat(char* address, int32_t id, float data) {
+	if (!isDestIpSet) { return; }
+	OSCMessage newMes(address);
+	newMes.add(id).add(data);
 	Udp.beginPacket(destIp, outPort);
 	newMes.send(Udp);
 	Udp.endPacket();
 	newMes.empty();
-	digitalWrite(ledPin, !digitalRead(ledPin));
+}
+
+
+void setDestIp(OSCMessage& msg, int addrOffset) {
+	bool bIpUpdated = (destIp[3] != Udp.remoteIP()[3]);
+	destIp = Udp.remoteIP();
+	isDestIpSet = true;
+	sendTwoData("/newDestIp", destIp[3], bIpUpdated);
 	//Watchdog.reset();
 }
 
@@ -254,7 +265,7 @@ void setIsSendBusy(uint8_t target, uint8_t val) {
 void getSw(OSCMessage& msg, int addrOffset) {
 	uint8_t target = msg.getInt(0);
 	if (TARGET_FIRST <= target && target <= TARGET_LAST) {
-		sendOneData("/getSw", target, lastSw[target - TARGET_FIRST]);
+		sendTwoData("/getSw", target, lastSw[target - TARGET_FIRST]);
 	}
 	else if (target == TARGET_ALL) {
 		OSCMessage newMes("/getSw");
@@ -272,7 +283,7 @@ void getSw(OSCMessage& msg, int addrOffset) {
 void getBusy(OSCMessage& msg, int addrOffset) {
 	uint8_t target = msg.getInt(0);
 	if (TARGET_FIRST <= target && target <= TARGET_LAST) {
-		sendOneData("/getBusy", target, lastBusy[target - TARGET_FIRST]);
+		sendTwoData("/getBusy", target, lastBusy[target - TARGET_FIRST]);
 	}
 	else if (target == TARGET_ALL) {
 		OSCMessage newMes("/getBusy");
@@ -289,11 +300,11 @@ void getBusy(OSCMessage& msg, int addrOffset) {
 void getStatus(OSCMessage& msg, int addrOffset) {
 	uint8_t target = msg.getInt(0);
 	if (TARGET_FIRST <= target && target <= TARGET_LAST) {
-		sendOneData("/status", target, L6470[target - TARGET_FIRST].getStatus());
+		sendTwoData("/status", target, L6470[target - TARGET_FIRST].getStatus());
 	}
 	else if (target == TARGET_ALL) {
 		for (uint8_t i = 0; i < NUM_L6470; i++) {
-			sendOneData("/status", i + TARGET_FIRST, L6470[i].getStatus());
+			sendTwoData("/status", i + TARGET_FIRST, L6470[i].getStatus());
 		}
 	}
 }
@@ -326,7 +337,7 @@ void configStepMode(OSCMessage& msg, int addrOffset) {
 void getStepMode(OSCMessage& msg, int addrOffset) {
 	uint8_t target = msg.getInt(0);
 	if (TARGET_FIRST <= target && target <= TARGET_LAST) {
-		sendOneData("/stepMode", target, L6470[target - TARGET_FIRST].getStepMode());
+		sendTwoData("/stepMode", target, L6470[target - TARGET_FIRST].getStepMode());
 	}
 	else if (target == TARGET_ALL) {
 		OSCMessage newMes("/stepMode");
@@ -343,7 +354,7 @@ void getStepMode(OSCMessage& msg, int addrOffset) {
 void getSwMode(OSCMessage& msg, int addrOffset) {
 	uint8_t target = msg.getInt(0);
 	if (TARGET_FIRST <= target && target <= TARGET_LAST) {
-		sendOneData("/swMode", target, L6470[target - TARGET_FIRST].getSwitchMode());
+		sendTwoData("/swMode", target, L6470[target - TARGET_FIRST].getSwitchMode());
 	}
 	else if (target == TARGET_ALL) {
 		OSCMessage newMes("/swMode");
@@ -375,6 +386,7 @@ void setStallThreshold(OSCMessage& msg, int addrOffset) {
 	uint8_t threshold = msg.getInt(1) & 0x7F;
 	if (TARGET_FIRST <= target && target <= TARGET_LAST) {
 		L6470[target - TARGET_FIRST].setParam(STALL_TH, threshold);
+		getStallThreshold(target);
 	}
 	else if (target == TARGET_ALL) {
 		for (uint8_t i = 0; i < NUM_L6470; i++) {
@@ -382,6 +394,15 @@ void setStallThreshold(OSCMessage& msg, int addrOffset) {
 		}
 	}
 	
+}
+void getStallThreshold(uint8_t motorId) {
+	uint8_t stall_th_raw = L6470[motorId - TARGET_FIRST].getParam(STALL_TH) & 0x7F;
+	float threshold = (stall_th_raw + 1) * 31.25;
+	sendIdFloat("/stallThreshold", motorId, threshold);
+}
+void getStallThreshold(OSCMessage& msg, int addrOffset) {
+	uint8_t target = msg.getInt(0);
+	getStallThreshold(target);
 }
 
 #pragma endregion config
@@ -603,22 +624,22 @@ void getSpdProfile(uint8_t target) {
 void getPos(OSCMessage& msg, int addrOffset) {
 	uint8_t target = msg.getInt(0);
 	if (TARGET_FIRST <= target && target <= TARGET_LAST) {
-		sendOneData("/pos", target, L6470[target - TARGET_FIRST].getPos());
+		sendTwoData("/pos", target, L6470[target - TARGET_FIRST].getPos());
 	}
 	else if (target == TARGET_ALL) {
 		for (uint8_t i = 0; i < NUM_L6470; i++) {
-			sendOneData("/pos", i + TARGET_FIRST, L6470[i].getPos());
+			sendTwoData("/pos", i + TARGET_FIRST, L6470[i].getPos());
 		}
 	}
 }
 void getMark(OSCMessage& msg, int addrOffset) {
 	uint8_t target = msg.getInt(0);
 	if (TARGET_FIRST <= target && target <= TARGET_LAST) {
-		sendOneData("/mark", target, L6470[target - TARGET_FIRST].getMark());
+		sendTwoData("/mark", target, L6470[target - TARGET_FIRST].getMark());
 	}
 	else if (target == TARGET_ALL) {
 		for (uint8_t i = 0; i < NUM_L6470; i++) {
-			sendOneData("/mark", i + TARGET_FIRST, L6470[i].getMark());
+			sendTwoData("/mark", i + TARGET_FIRST, L6470[i].getMark());
 		}
 	}
 }
@@ -920,6 +941,7 @@ void OSCMsgReceive() {
 			msgIN.route("/getSwMode", getSwMode);
 			msgIN.route("/setSwMode", setSwMode);
 			msgIN.route("/setStallThreshold", setStallThreshold);
+			msgIN.route("/getStallThreshold", getStallThreshold);
 
 			msgIN.route("/setSpdProfile", setSpdProfile);
 			msgIN.route("/setMaxSpeed", setMaxSpeed);
@@ -1006,14 +1028,14 @@ void updateFlagBusy() {
 			if (lastBusy[index] != isBusy) {
 				lastBusy[index] = isBusy;
 				if (isSendBusy[index]) {
-					sendOneData("/busy", index + 1, isBusy);
+					sendTwoData("/busy", index + 1, isBusy);
 				}
 			}
 
 			if (lastFlag[index] != isFlag) {
 				lastFlag[index] = isFlag;
 				if (isSendFlag[index]) {
-					sendOneData("/flag", index + 1, isFlag);
+					sendTwoData("/flag", index + 1, isFlag);
 				}
 			}
 		}
@@ -1039,10 +1061,70 @@ void updatePid(uint32_t currentTimeMicros) {
 		lastPidTime = currentTimeMicros;
 	}
 }
+
+void sendStatusDebug(char* address, int32_t data1, int32_t data2, int32_t data3) {
+	if (!isDestIpSet) { return; }
+	OSCMessage newMes(address);
+	newMes.add(data1).add(data2).add(data3);
+	Udp.beginPacket(destIp, outPort);
+	newMes.send(Udp);
+	Udp.endPacket();
+	newMes.empty();
+}
+
+void checkStatus() {
+	for (uint8_t i = 0; i < NUM_L6470; i++)
+	{
+		const auto status = L6470[i].getStatus();
+		uint32_t t = (status & STATUS_SW_F) > 0;
+		if (swState[i] != t)
+		{
+			swState[i] = t;
+			//sendTwoData("/sw", i + 1, t);
+			sendStatusDebug("/sw", i + 1, t, status);
+		}
+
+		t = (status & STATUS_BUSY) > 0;
+		if (busy[i] != t)
+		{
+			busy[i] = t;
+			//sendTwoData("/busy", i + 1, t);
+			sendStatusDebug("/busy", i + 1, t, status);
+		}
+
+		t = (status & STATUS_DIR) > 0;
+		if (dir[i] != t)
+		{
+			dir[i] = t;
+			//sendTwoData("/dir", i + 1, t);
+			sendStatusDebug("/dir", i + 1, t, status);
+		}
+
+		t = (status & STATUS_MOT_STATUS) >> 5;
+		if (motorStatus[i] != t) {
+			motorStatus[i] = t;
+			sendStatusDebug("/motorStatus", i + 1, t, status);
+		}
+
+		t = (status & (STATUS_STEP_LOSS_A | STATUS_STEP_LOSS_B)) >> 13;
+		if (t != 3)
+		{
+			sendStatusDebug("/stall", i + 1, t, status);
+		}
+
+	}
+}
+
 void loop() {
 	uint32_t currentTimeMillis = millis(),
 		currentTimeMicros = micros();
+	static uint32_t lastPollTime = 0;
 
+	if ((uint32_t)(currentTimeMillis - lastPollTime) >= POLL_DURATION)
+	{
+		checkStatus();
+		lastPollTime = currentTimeMillis;
+	}
 	OSCMsgReceive();
 
 	if (updateShiftResistor()) {
