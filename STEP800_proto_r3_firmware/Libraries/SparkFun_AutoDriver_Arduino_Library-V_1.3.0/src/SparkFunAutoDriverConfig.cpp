@@ -61,17 +61,15 @@ float AutoDriver::getMaxSpeed()
 // Set the minimum speed allowable in the system. This is the speed a motion
 //  starts with; it will then ramp up to the designated speed or the max
 //  speed, using the acceleration profile.
-void AutoDriver::setMinSpeed(float stepsPerSecond)
+void AutoDriver::setMinSpeed(float stepsPerSecond, bool lowSpeedOptimize)
 {
   // We need to convert the floating point stepsPerSecond into a value that
   //  the dSPIN can understand. Fortunately, we have a function to do that.
   unsigned long integerSpeed = minSpdCalc(stepsPerSecond);
   
-  // MIN_SPEED also contains the LSPD_OPT flag, so we need to protect that.
-  unsigned long temp = getParam(MIN_SPEED) & 0x00001000;
-  
+  // 12th bit of MIN_SPEED register is LSPD_OPT flag.
   // Now, we can set that paramter.
-  setParam(MIN_SPEED, integerSpeed | temp);
+  setParam(MIN_SPEED, integerSpeed | (lowSpeedOptimize << 12));
 }
 
 float AutoDriver::getMinSpeed()

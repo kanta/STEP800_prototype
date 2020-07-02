@@ -187,25 +187,28 @@
 #define STATUS               0x19
 
 //dSPIN commands
-#define NOP                  0x00
-#define SET_PARAM            0x00
-#define GET_PARAM            0x20
-#define RUN                  0x50
-#define STEP_CLOCK           0x58
-#define MOVE                 0x40
-#define GOTO                 0x60
-#define GOTO_DIR             0x68
-#define GO_UNTIL             0x82
-#define RELEASE_SW           0x92
-#define GO_HOME              0x70
-#define GO_MARK              0x78
-#define RESET_POS            0xD8
-#define RESET_DEVICE         0xC0
-#define SOFT_STOP            0xB0
-#define HARD_STOP            0xB8
-#define SOFT_HIZ             0xA0
-#define HARD_HIZ             0xA8
-#define GET_STATUS           0xD0
+#define CMD_NOP                  0x00
+#define CMD_SET_PARAM            0x00
+#define CMD_GET_PARAM            0x20
+#define CMD_RUN                  0x50
+#define CMD_STEP_CLOCK           0x58
+#define CMD_MOVE                 0x40
+#define CMD_GOTO                 0x60
+#define CMD_GOTO_DIR             0x68
+#define CMD_GO_UNTIL             0x82
+#define CMD_RELEASE_SW           0x92
+#define CMD_GO_HOME              0x70
+#define CMD_GO_MARK              0x78
+#define CMD_RESET_POS            0xD8
+#define CMD_RESET_DEVICE         0xC0
+#define CMD_SOFT_STOP            0xB0
+#define CMD_HARD_STOP            0xB8
+#define CMD_SOFT_HIZ             0xA0
+#define CMD_HARD_HIZ             0xA8
+#define CMD_GET_STATUS           0xD0
+
+// MIN_SPEED register flag
+#define LSPD_OPT                 0x1000 // Low speed optimization
 
 #endif
 

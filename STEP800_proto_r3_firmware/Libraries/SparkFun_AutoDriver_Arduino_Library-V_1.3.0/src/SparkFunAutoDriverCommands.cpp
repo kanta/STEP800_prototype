@@ -7,7 +7,7 @@
 //  the dSPIN chip.
 void AutoDriver::setParam(byte param, unsigned long value) 
 {
-  param |= SET_PARAM;
+  param |= CMD_SET_PARAM;
   SPIXfer((byte)param);
   paramHandler(param, value);
 }
@@ -16,7 +16,7 @@ void AutoDriver::setParam(byte param, unsigned long value)
 //  the dSPIN chip.
 unsigned long AutoDriver::getParam(byte param)
 {
-  SPIXfer(param | GET_PARAM);
+  SPIXfer(param | CMD_GET_PARAM);
   return paramHandler(param, 0);
 }
 
@@ -55,7 +55,7 @@ long AutoDriver::getMark()
 //  appropriate integer values for this function.
 void AutoDriver::run(byte dir, float stepsPerSec)
 {
-  SPIXfer(RUN | dir);
+  SPIXfer(CMD_RUN | dir);
   unsigned long integerSpeed = spdCalc(stepsPerSec);
   if (integerSpeed > 0xFFFFF) integerSpeed = 0xFFFFF;
   
@@ -82,7 +82,7 @@ void AutoDriver::run(byte dir, float stepsPerSec)
 //  to exit step clocking mode.
 void AutoDriver::stepClock(byte dir)
 {
-  SPIXfer(STEP_CLOCK | dir);
+  SPIXfer(CMD_STEP_CLOCK | dir);
 }
 
 // MOVE will send the motor numStep full steps in the
@@ -91,7 +91,7 @@ void AutoDriver::stepClock(byte dir)
 //  will run at MAX_SPEED. Stepping mode will adhere to FS_SPD value, as well.
 void AutoDriver::move(byte dir, unsigned long numSteps)
 {
-  SPIXfer(MOVE | dir);
+  SPIXfer(CMD_MOVE | dir);
   if (numSteps > 0x3FFFFF) numSteps = 0x3FFFFF;
   // See run() for an explanation of what's going on here.
   byte* bytePointer = (byte*)&numSteps;
@@ -106,7 +106,7 @@ void AutoDriver::move(byte dir, unsigned long numSteps)
 //  in the shortest possible fashion.
 void AutoDriver::goTo(long pos)
 {
-  SPIXfer(GOTO);
+  SPIXfer(CMD_GOTO);
   if (pos > 0x3FFFFF) pos = 0x3FFFFF;
   // See run() for an explanation of what's going on here.
   byte* bytePointer = (byte*)&pos;
@@ -119,7 +119,7 @@ void AutoDriver::goTo(long pos)
 // Same as GOTO, but with user constrained rotational direction.
 void AutoDriver::goToDir(byte dir, long pos)
 {
-  SPIXfer(GOTO_DIR | dir);
+  SPIXfer(CMD_GOTO_DIR | dir);
   if (pos > 0x3FFFFF) pos = 0x3FFFFF;
   // See run() for an explanation of what's going on here.
   byte* bytePointer = (byte*)&pos;
@@ -137,7 +137,7 @@ void AutoDriver::goToDir(byte dir, long pos)
 //  either RESET to 0 or COPY-ed into the MARK register.
 void AutoDriver::goUntil(byte action, byte dir, float stepsPerSec)
 {
-  SPIXfer(GO_UNTIL | action | dir);
+  SPIXfer(CMD_GO_UNTIL | action | dir);
   unsigned long integerSpeed = spdCalc(stepsPerSec);
   if (integerSpeed > 0x3FFFFF) integerSpeed = 0x3FFFFF;
   // See run() for an explanation of what's going on here.
@@ -157,7 +157,7 @@ void AutoDriver::goUntil(byte action, byte dir, float stepsPerSec)
 //  for act.
 void AutoDriver::releaseSw(byte action, byte dir)
 {
-  SPIXfer(RELEASE_SW | action | dir);
+  SPIXfer(CMD_RELEASE_SW | action | dir);
 }
 
 // GoHome is equivalent to GoTo(0), but requires less time to send.
@@ -165,7 +165,7 @@ void AutoDriver::releaseSw(byte action, byte dir)
 //  path. If a direction is required, use GoTo_DIR().
 void AutoDriver::goHome()
 {
-  SPIXfer(GO_HOME);
+  SPIXfer(CMD_GO_HOME);
 }
 
 // GoMark is equivalent to GoTo(MARK), but requires less time to send.
@@ -173,7 +173,7 @@ void AutoDriver::goHome()
 //  path. If a direction is required, use GoTo_DIR().
 void AutoDriver::goMark()
 {
-  SPIXfer(GO_MARK);
+  SPIXfer(CMD_GO_MARK);
 }
 
 // setMark() and setHome() allow the user to define new MARK or
@@ -192,38 +192,38 @@ void AutoDriver::setPos(long newPos)
 //  position to be "HOME".
 void AutoDriver::resetPos()
 {
-  SPIXfer(RESET_POS);
+  SPIXfer(CMD_RESET_POS);
 }
 
 // Reset device to power up conditions. Equivalent to toggling the STBY
 //  pin or cycling power.
 void AutoDriver::resetDev()
 {
-  SPIXfer(RESET_DEVICE);
+  SPIXfer(CMD_RESET_DEVICE);
 }
   
 // Bring the motor to a halt using the deceleration curve.
 void AutoDriver::softStop()
 {
-  SPIXfer(SOFT_STOP);
+  SPIXfer(CMD_SOFT_STOP);
 }
 
 // Stop the motor with infinite deceleration.
 void AutoDriver::hardStop()
 {
-  SPIXfer(HARD_STOP);
+  SPIXfer(CMD_HARD_STOP);
 }
 
 // Decelerate the motor and put the bridges in Hi-Z state.
 void AutoDriver::softHiZ()
 {
-  SPIXfer(SOFT_HIZ);
+  SPIXfer(CMD_SOFT_HIZ);
 }
 
 // Put the bridges in Hi-Z state immediately with no deceleration.
 void AutoDriver::hardHiZ()
 {
-  SPIXfer(HARD_HIZ);
+  SPIXfer(CMD_HARD_HIZ);
 }
 
 // Fetch and return the 16-bit value in the STATUS register. Resets
@@ -233,7 +233,7 @@ int AutoDriver::getStatus()
 {
   int temp = 0;
   byte* bytePointer = (byte*)&temp;
-  SPIXfer(GET_STATUS);
+  SPIXfer(CMD_GET_STATUS);
   bytePointer[1] = SPIXfer(0);
   bytePointer[0] = SPIXfer(0);
   return temp;

@@ -34,7 +34,7 @@ class AutoDriver
     void configSyncPin(byte pinFunc, byte syncSteps);
     void configStepMode(byte stepMode);
     void setMaxSpeed(float stepsPerSecond);
-    void setMinSpeed(float stepsPerSecond);
+    void setMinSpeed(float stepsPerSecond, bool lowSpeedOptimize);
     void setFullSpeed(float stepsPerSecond);
     void setAcc(float stepsPerSecondPerSecond);
     void setDec(float stepsPerSecondPerSecond);
