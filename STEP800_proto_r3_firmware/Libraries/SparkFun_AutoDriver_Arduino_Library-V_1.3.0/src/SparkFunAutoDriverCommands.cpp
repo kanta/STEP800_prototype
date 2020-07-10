@@ -137,6 +137,7 @@ void AutoDriver::goToDir(byte dir, long pos)
 //  either RESET to 0 or COPY-ed into the MARK register.
 void AutoDriver::goUntil(byte action, byte dir, float stepsPerSec)
 {
+  action = (action > 0) << 3;
   SPIXfer(CMD_GO_UNTIL | action | dir);
   unsigned long integerSpeed = spdCalc(stepsPerSec);
   if (integerSpeed > 0x3FFFFF) integerSpeed = 0x3FFFFF;
@@ -157,6 +158,7 @@ void AutoDriver::goUntil(byte action, byte dir, float stepsPerSec)
 //  for act.
 void AutoDriver::releaseSw(byte action, byte dir)
 {
+  action = (action > 0) << 3;
   SPIXfer(CMD_RELEASE_SW | action | dir);
 }
 

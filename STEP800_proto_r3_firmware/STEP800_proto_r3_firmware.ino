@@ -45,13 +45,14 @@ bool flag[NUM_L6470] = { 0,0,0,0,0,0,0,0 };
 bool HiZ[NUM_L6470] = { 0,0,0,0,0,0,0,0 };
 bool swState[NUM_L6470] = { 0,0,0,0,0,0,0,0 };
 bool dir[NUM_L6470] = { 0,0,0,0,0,0,0,0 };
+bool uvloStatus[NUM_L6470] = { 0,0,0,0,0,0,0,0 };
 uint8_t motorStatus[NUM_L6470] = { 0,0,0,0,0,0,0,0 };
 uint8_t thermalStatus[NUM_L6470] = { 0,0,0,0,0,0,0,0 };
 
 bool reportBUSY[NUM_L6470] = { false,false,false,false,false,false,false,false };
 bool reportFLAG[NUM_L6470] = { false,false,false,false,false,false,false,false };
 bool reportHiZ[NUM_L6470] = { false,false,false,false,false,false,false,false };
-bool reportSwStatus[NUM_L6470] = { false,false,false,false,false,false,false,false };
+bool reportHomeSwStatus[NUM_L6470] = { false,false,false,false,false,false,false,false };
 bool reportDir[NUM_L6470] = { false,false,false,false,false,false,false,false };
 bool reportMotorStatus[NUM_L6470] = { false,false,false,false,false,false,false,false };
 
@@ -95,11 +96,21 @@ AutoDriver L6470[] = {
 #define SD_CS_PIN	4u
 #define SD_DETECT_PIN	A4
 
+#define SETUP_SW_PIN	5u
+
 // servo mode
 uint32_t lastServoUpdateTime;
 int32_t targetPosition[8] = { 0,0,0,0,0,0,0,0 };
 float kP[8] = { 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06 };
+float kI[8] = { 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06 };
+float kD[8] = { 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06 };
 boolean isServoMode[8] = { false, false, false, false, false, false, false, false };
+constexpr auto position_tolerance = 20; // steps
+
+// Tx, Rx LED
+bool rxLedEnabled = false, txLedEnabled = false;
+uint32_t RXL_blinkStartTime, TXL_blinkStartTime;
+#define RXL_TXL_BLINK_DURATION	100 // ms
 
 void setUSBPriority()
 {
@@ -116,6 +127,7 @@ void setup()
 	pinMode(SD_CS_PIN, OUTPUT);
 	pinMode(LATCH3, OUTPUT);
 	pinMode(SD_DETECT_PIN, INPUT_PULLUP);
+	pinMode(SETUP_SW_PIN, INPUT_PULLUP);
 
 	SerialUSB.begin(115200);
 
@@ -146,7 +158,6 @@ void setup()
 
 	// Start SPI for L6470
 	L6470SPI.begin();
-	// L6470SPI.setClockDivider(SPI_CLOCK_DIV128); // default DIV4
 	pinPeripheral(L6470_MOSI, PIO_SERCOM_ALT);
 	pinPeripheral(L6470_SCK, PIO_SERCOM_ALT);
 	pinPeripheral(L6470_MISO, PIO_SERCOM_ALT);
@@ -188,12 +199,12 @@ void resetMotorDriver(uint8_t deviceID) {
 		deviceID -= MOTOR_ID_FIRST;
 		L6470[deviceID].resetDev();
 		L6470[deviceID].configStepMode(STEP_FS_128);
-		L6470[deviceID].setMaxSpeed(10000);
-		L6470[deviceID].setFullSpeed(2000);
-		L6470[deviceID].setAcc(2000);
-		L6470[deviceID].setDec(2000);
+		L6470[deviceID].setMaxSpeed(650.);
+		L6470[deviceID].setFullSpeed(15000.);
+		L6470[deviceID].setAcc(2000.);
+		L6470[deviceID].setDec(2000.);
 		L6470[deviceID].setSlewRate(SR_530V_us);
-		L6470[deviceID].setOCThreshold(OC_2250mA);
+		L6470[deviceID].setOCThreshold(OC_1500mA);
 		L6470[deviceID].setOCShutdown(OC_SD_ENABLE);
 		L6470[deviceID].setPWMFreq(PWM_DIV_1, PWM_MUL_0_75);
 		L6470[deviceID].setVoltageComp(VS_COMP_DISABLE);
@@ -211,6 +222,19 @@ void resetMotorDriver(uint8_t deviceID) {
 	}
 }
 
+void turnOnRXL() {
+	digitalWrite(PIN_LED_RXL, LOW); // turn on
+	RXL_blinkStartTime = millis();
+	rxLedEnabled = true;
+}
+
+void turnOnTXL() {
+	digitalWrite(PIN_LED_TXL, LOW); // turn on
+	TXL_blinkStartTime = millis();
+	txLedEnabled = true;
+}
+
+
 void sendOneDatum(char* address, int32_t data) {
 	if (!isDestIpSet) { return; }
 	OSCMessage newMes(address);
@@ -219,6 +243,7 @@ void sendOneDatum(char* address, int32_t data) {
 	newMes.send(Udp);
 	Udp.endPacket();
 	newMes.empty();
+	turnOnTXL();
 }
 
 void sendTwoData(char* address, int32_t data1, int32_t data2) {
@@ -229,6 +254,7 @@ void sendTwoData(char* address, int32_t data1, int32_t data2) {
 	newMes.send(Udp);
 	Udp.endPacket();
 	newMes.empty();
+	turnOnTXL();
 }
 
 void sendIdFloat(char* address, int32_t id, float data) {
@@ -239,6 +265,7 @@ void sendIdFloat(char* address, int32_t id, float data) {
 	newMes.send(Udp);
 	Udp.endPacket();
 	newMes.empty();
+	turnOnTXL();
 }
 
 void sendOneString(char* address, const char* data) {
@@ -248,6 +275,7 @@ void sendOneString(char* address, const char* data) {
 	newMes.send(Udp);
 	Udp.endPacket();
 	newMes.empty();
+	turnOnTXL();
 }
 
 #pragma region config
@@ -266,6 +294,7 @@ void setDestIp(OSCMessage& msg, int addrOffset) {
 	Udp.endPacket();
 	newMes.empty();
 	isDestIpSet = true;
+	turnOnTXL();
 }
 
 void getVersion(OSCMessage& msg, int addrOffset) {
@@ -274,6 +303,7 @@ void getVersion(OSCMessage& msg, int addrOffset) {
 	sendOneString("/version", version.c_str());
 }
 
+// reset the motor driver chip and setup it
 void resetMotorDriver(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = msg.getInt(0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
@@ -281,11 +311,12 @@ void resetMotorDriver(OSCMessage& msg, int addrOffset) {
 	}
 	else if (motorID == MOTOR_ID_ALL) {
 		for (uint8_t i = 0; i < NUM_L6470; i++) {
-			resetMotorDriver(motorID + MOTOR_ID_FIRST);
+			resetMotorDriver(i);
 		}
 	}
 }
 
+// simply send reset command to the driverchip via SPI
 void resetDev(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = msg.getInt(0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
@@ -336,15 +367,15 @@ void enableHizReport(OSCMessage& msg, int addrOffset) {
 		}
 	}
 }
-void enableSwReport(OSCMessage& msg, int addrOffset) {
+void enableHomeSwReport(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = msg.getInt(0);
 	bool bEnable = msg.getInt(1) > 0;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
-		reportSwStatus[motorID - 1] = bEnable;
+		reportHomeSwStatus[motorID - 1] = bEnable;
 	}
 	else if (motorID == MOTOR_ID_ALL) {
 		for (uint8_t i = 0; i < NUM_L6470; i++) {
-			reportSwStatus[i] = bEnable;
+			reportHomeSwStatus[i] = bEnable;
 		}
 	}
 }
@@ -420,7 +451,7 @@ void enableThermalStatusReport(OSCMessage& msg, int addrOffset) {
 		}
 	}
 }
-void enableOcdReport(OSCMessage& msg, int addrOffset) {
+void enableOverCurrentReport(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = msg.getInt(0);
 	bool bEnable = msg.getInt(1) > 0;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
@@ -445,17 +476,27 @@ void enableStallReport(OSCMessage& msg, int addrOffset) {
 	}
 }
 
-void getSw(OSCMessage& msg, int addrOffset) {
+void getHomeSw(OSCMessage& msg, int addrOffset) {
 	if (!isDestIpSet) { return; }
 	uint8_t motorID = msg.getInt(0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
-		sendTwoData("/sw", motorID, swState[motorID - MOTOR_ID_FIRST]);
+		getHomeSw(motorID);
 	}
 	else if (motorID == MOTOR_ID_ALL) {
 		for (uint8_t i = 0; i < NUM_L6470; i++) {
-			sendTwoData("/sw", i + MOTOR_ID_FIRST, swState[i]);
+			getHomeSw(i + 1);
 		}
 	}
+}
+void getHomeSw(uint8_t motorID) {
+	if (!isDestIpSet) { return; }
+	OSCMessage newMes("/homeSw");
+	newMes.add(motorID).add(swState[motorID - MOTOR_ID_FIRST]).add(dir[motorID - MOTOR_ID_FIRST]);
+	Udp.beginPacket(destIp, outPort);
+	newMes.send(Udp);
+	Udp.endPacket();
+	newMes.empty();
+	turnOnTXL();
 }
 
 void getBusy(OSCMessage& msg, int addrOffset) {
@@ -467,6 +508,44 @@ void getBusy(OSCMessage& msg, int addrOffset) {
 	else if (motorID == MOTOR_ID_ALL) {
 		for (uint8_t i = 0; i < NUM_L6470; i++) {
 			sendTwoData("/busy", i + MOTOR_ID_FIRST, busy[i]);
+		}
+	}
+}
+void getUvlo(OSCMessage& msg, int addrOffset) {
+	if (!isDestIpSet) { return; }
+	uint8_t motorID = msg.getInt(0);
+	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
+		sendTwoData("/uvlo", motorID, uvloStatus[motorID - MOTOR_ID_FIRST]);
+	}
+	else if (motorID == MOTOR_ID_ALL) {
+		for (uint8_t i = 0; i < NUM_L6470; i++) {
+			sendTwoData("/uvlo", i + 1, uvloStatus[i]);
+		}
+	}
+}
+
+void getMotorStatus(OSCMessage& msg, int addrOffset) {
+	if (!isDestIpSet) { return; }
+	uint8_t motorID = msg.getInt(0);
+	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
+		sendTwoData("/motorStatus", motorID, motorStatus[motorID - MOTOR_ID_FIRST]);
+	}
+	else if (motorID == MOTOR_ID_ALL) {
+		for (uint8_t i = 0; i < NUM_L6470; i++) {
+			sendTwoData("/motorStatus", i + 1, motorStatus[i]);
+		}
+	}
+}
+
+void getThermalStatus(OSCMessage& msg, int addrOffset) {
+	if (!isDestIpSet) { return; }
+	uint8_t motorID = msg.getInt(0);
+	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
+		sendTwoData("/thermalStatus", motorID, thermalStatus[motorID - MOTOR_ID_FIRST]);
+	}
+	else if (motorID == MOTOR_ID_ALL) {
+		for (uint8_t i = 0; i < NUM_L6470; i++) {
+			sendTwoData("/thermalStatus", i + 1, thermalStatus[i]);
 		}
 	}
 }
@@ -497,7 +576,7 @@ void getStatusList(OSCMessage& msg, int addrOffset) {
 	newMes.empty();
 }
 
-void configMicrostepMode(OSCMessage& msg, int addrOffset) {
+void setMicrostepMode(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = msg.getInt(0);
 	uint8_t microstepMode = constrain(msg.getInt(1), STEP_FS, STEP_FS_128); // 0-7
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
@@ -523,22 +602,22 @@ void getMicrostepMode(OSCMessage& msg, int addrOffset) {
 	}
 }
 
-void getSwMode(OSCMessage& msg, int addrOffset) {
+void getHomeSwMode(OSCMessage& msg, int addrOffset) {
 	if (!isDestIpSet) { return; }
 	uint8_t motorID = msg.getInt(0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
-		sendTwoData("/swMode", motorID, L6470[motorID - MOTOR_ID_FIRST].getSwitchMode() > 0);
+		sendTwoData("/homeSwMode", motorID, L6470[motorID - MOTOR_ID_FIRST].getSwitchMode() > 0);
 	}
 	else if (motorID == MOTOR_ID_ALL) {
 		for (uint8_t i = 0; i < NUM_L6470; i++) {
-			sendTwoData("/swMode", i + MOTOR_ID_FIRST, L6470[i].getStepMode() > 0);
+			sendTwoData("/homeSwMode", i + MOTOR_ID_FIRST, L6470[i].getSwitchMode() > 0);
 		}
 	}
 }
 
-void setSwMode(OSCMessage& msg, int addrOffset) {
+void setHomeSwMode(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = msg.getInt(0);
-	uint8_t switchMode = (msg.getInt(1) > 0) ? SW_USER : SW_HARD_STOP;
+	uint16_t switchMode = (msg.getInt(1) > 0) ? SW_USER : SW_HARD_STOP;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		L6470[motorID - MOTOR_ID_FIRST].setSwitchMode(switchMode);
 	}
@@ -559,6 +638,7 @@ void setStallThreshold(OSCMessage& msg, int addrOffset) {
 	else if (motorID == MOTOR_ID_ALL) {
 		for (uint8_t i = 0; i < NUM_L6470; i++) {
 			L6470[i].setParam(STALL_TH, threshold);
+			getStallThreshold(i + 1);
 		}
 	}
 	
@@ -577,6 +657,38 @@ void getStallThreshold(OSCMessage& msg, int addrOffset) {
 	else if (motorID == MOTOR_ID_ALL) {
 		for (uint8_t i = 0; i < NUM_L6470; i++) {
 			getStallThreshold(i + MOTOR_ID_FIRST);
+		}
+	}
+}
+
+void setOverCurrentThreshold(OSCMessage& msg, int addrOffset) {
+	uint8_t motorID = msg.getInt(0);
+	uint8_t threshold = msg.getInt(1) & 0x0F; // 4bit
+	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
+		L6470[motorID - MOTOR_ID_FIRST].setParam(OCD_TH, threshold);
+		getOverCurrentThreshold(motorID);
+	}
+	else if (motorID == MOTOR_ID_ALL) {
+		for (uint8_t i = 0; i < NUM_L6470; i++) {
+			L6470[i].setParam(OCD_TH, threshold);
+			getOverCurrentThreshold(i + 1);
+		}
+	}
+}
+void getOverCurrentThreshold(uint8_t motorId) {
+	if (!isDestIpSet) { return; }
+	uint8_t ocd_th_raw = L6470[motorId - MOTOR_ID_FIRST].getParam(OCD_TH) & 0x0F;
+	float threshold = (ocd_th_raw + 1) * 375;
+	sendIdFloat("/overCurrentThreshold", motorId, threshold);
+}
+void getOverCurrentThreshold(OSCMessage& msg, int addrOffset) {
+	uint8_t motorID = msg.getInt(0);
+	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
+		getOverCurrentThreshold(motorID);
+	}
+	else if (motorID == MOTOR_ID_ALL) {
+		for (uint8_t i = 0; i < NUM_L6470; i++) {
+			getOverCurrentThreshold(i + MOTOR_ID_FIRST);
 		}
 	}
 }
@@ -715,6 +827,7 @@ void getKVAL(uint8_t motorID) {
 	newMes.send(Udp);
 	Udp.endPacket();
 	newMes.empty();
+	turnOnTXL();
 }
 
 #pragma endregion KVAL
@@ -815,6 +928,24 @@ void getSpeedProfile(uint8_t motorID) {
 	newMes.send(Udp);
 	Udp.endPacket();
 	newMes.empty();
+	turnOnTXL();
+}
+
+void getSpeed(OSCMessage& msg, int addrOffset) {
+	uint8_t motorID = msg.getInt(0);
+	float s;
+	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
+		s = L6470[motorID - MOTOR_ID_FIRST].getSpeed();
+		if (dir[motorID - MOTOR_ID_FIRST] == REV) { s *= -1.0; }
+		sendIdFloat("/speed", motorID, s);
+	}
+	else if (motorID == MOTOR_ID_ALL) {
+		for (uint8_t i = 0; i < NUM_L6470; i++) {
+			s = L6470[i].getSpeed();
+			if (dir[i] == REV) { s *= -1.0; }
+			sendIdFloat("/speed", i + 1, s);
+		}
+	}
 }
 
 #pragma endregion speed
@@ -995,10 +1126,12 @@ void resetPos(OSCMessage& msg, int addrOffset) {
 void softStop(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = msg.getInt(0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
+		isServoMode[motorID - MOTOR_ID_FIRST] = false;
 		L6470[motorID - MOTOR_ID_FIRST].softStop();
 	}
 	else if (motorID == MOTOR_ID_ALL) {
 		for (uint8_t i = 0; i < NUM_L6470; i++) {
+			isServoMode[i] = false;
 			L6470[i].softStop();
 		}
 	}
@@ -1006,10 +1139,12 @@ void softStop(OSCMessage& msg, int addrOffset) {
 void hardStop(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = msg.getInt(0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
+		isServoMode[motorID - MOTOR_ID_FIRST] = false;
 		L6470[motorID - MOTOR_ID_FIRST].hardStop();
 	}
 	else if (motorID == MOTOR_ID_ALL) {
 		for (uint8_t i = 0; i < NUM_L6470; i++) {
+			isServoMode[i] = false;
 			L6470[i].hardStop();
 		}
 	}
@@ -1017,10 +1152,12 @@ void hardStop(OSCMessage& msg, int addrOffset) {
 void softHiZ(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = msg.getInt(0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
+		isServoMode[motorID - MOTOR_ID_FIRST] = false;
 		L6470[motorID - MOTOR_ID_FIRST].softHiZ();
 	}
 	else if (motorID == MOTOR_ID_ALL) {
 		for (uint8_t i = 0; i < NUM_L6470; i++) {
+			isServoMode[i] = false;
 			L6470[i].softHiZ();
 		}
 	}
@@ -1028,10 +1165,12 @@ void softHiZ(OSCMessage& msg, int addrOffset) {
 void hardHiZ(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = msg.getInt(0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
+		isServoMode[motorID - MOTOR_ID_FIRST] = false;
 		L6470[motorID - MOTOR_ID_FIRST].hardHiZ();
 	}
 	else if (motorID == MOTOR_ID_ALL) {
 		for (uint8_t i = 0; i < NUM_L6470; i++) {
+			isServoMode[i] = false;
 			L6470[i].hardHiZ();
 		}
 	}
@@ -1066,6 +1205,10 @@ void enableServoMode(OSCMessage& msg, int addrOffset) {
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		if (bEnable) {
 			targetPosition[motorID - MOTOR_ID_FIRST] = L6470[motorID - MOTOR_ID_FIRST].getPos();
+			reportBUSY[motorID - MOTOR_ID_FIRST] = false;
+			reportMotorStatus[motorID - MOTOR_ID_FIRST] = false;
+			reportDir[motorID - MOTOR_ID_FIRST] = false;
+			L6470[motorID - MOTOR_ID_FIRST].hardStop();
 		}
 		else {
 			L6470[motorID - MOTOR_ID_FIRST].softStop();
@@ -1076,6 +1219,10 @@ void enableServoMode(OSCMessage& msg, int addrOffset) {
 		for (uint8_t i = 0; i < NUM_L6470; i++) {
 			if (bEnable) {
 				targetPosition[i] = L6470[i].getPos();
+				reportBUSY[i] = false;
+				reportMotorStatus[i] = false;
+				reportDir[i] = false;
+				L6470[i].hardStop();
 			}
 			else {
 				L6470[i].softStop();
@@ -1090,21 +1237,49 @@ void enableServoMode(OSCMessage& msg, int addrOffset) {
 	//SerialUSB.println();
 }
 
-void setKp(OSCMessage& msg, int addrOffset) {
+void setServoParam(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = msg.getInt(0);
-	float t = msg.getFloat(1);
-	if (t <= 0.0) {
-		t = 0;
-	}
+	float _kp = msg.getFloat(1), _ki = msg.getFloat(2), _kd = msg.getFloat(3);
+	if (_kp <= 0.0) _kp = 0;
+	if (_ki <= 0.0) _ki = 0;
+	if (_kd <= 0.0) _kd = 0;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
-		kP[motorID - MOTOR_ID_FIRST] = t;
+		kP[motorID - MOTOR_ID_FIRST] = _kp;
+		kI[motorID - MOTOR_ID_FIRST] = _ki;
+		kD[motorID - MOTOR_ID_FIRST] = _kd;
 	}
 	else if (motorID == MOTOR_ID_ALL) {
 		for (uint8_t i = 0; i < NUM_L6470; i++) {
-			kP[i] = t;
+			kP[i] = _kp;
+			kI[i] = _ki;
+			kD[i] = _kd;
 		}
 	}
 }
+
+void getServoParam(uint8_t motorID) {
+	if (!isDestIpSet) { return; }
+	OSCMessage newMes("/servoParam");
+	newMes.add(motorID).add(kP[motorID-1]).add(kI[motorID-1]).add(kD[motorID-1]);
+	Udp.beginPacket(destIp, outPort);
+	newMes.send(Udp);
+	Udp.endPacket();
+	newMes.empty();
+	turnOnTXL();
+}
+
+void getServoParam(OSCMessage& msg, int addrOffset) {
+	uint8_t motorID = msg.getInt(0);
+	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
+		getServoParam(motorID);
+	}
+	else if (motorID == MOTOR_ID_ALL) {
+		for (uint8_t i = 0; i < NUM_L6470; i++) {
+			getServoParam(i + 1);
+		}
+	}
+}
+
 #pragma endregion servo
 
 void OSCMsgReceive() {
@@ -1120,6 +1295,7 @@ void OSCMsgReceive() {
 			msgIN.route("/setTargetPosition", setTargetPosition);
 			msgIN.route("/setTargetPositionList", setTargetPositionList);
 			msgIN.route("/getPosition", getPosition);
+			msgIN.route("/getSpeed", getSpeed);
 			msgIN.route("/run", run);
 			//msgIN.route("/runRaw", runRaw);
 
@@ -1144,7 +1320,8 @@ void OSCMsgReceive() {
 
 			// servo mode
 			msgIN.route("/enableServoMode", enableServoMode);
-			msgIN.route("/setKp", setKp);
+			msgIN.route("/setServoParam", setServoParam);
+			msgIN.route("/getServoParam", getServoParam);
 
 			// speed
 			msgIN.route("/setSpeedProfile", setSpeedProfile);
@@ -1167,29 +1344,34 @@ void OSCMsgReceive() {
 			msgIN.route("/getVersion", getVersion);
 			msgIN.route("/getStatus", getStatus);
 			msgIN.route("/getStatusList", getStatusList);
-			msgIN.route("/getSw", getSw);
+			msgIN.route("/getHomeSw", getHomeSw);
 			msgIN.route("/getBusy", getBusy);
+			msgIN.route("/getUvlo", getUvlo);
+			msgIN.route("/getMotorStatus", getMotorStatus);
+			msgIN.route("/getThermalStatus", getThermalStatus);
 			msgIN.route("/resetMotorDriver", resetMotorDriver);
 			msgIN.route("/enableFlagReport", enableFlagReport);
 			msgIN.route("/enableBusyReport", enableBusyReport);
 			msgIN.route("/enableHizReport", enableHizReport);
-			msgIN.route("/enableSwReport", enableSwReport);
+			msgIN.route("/enableHomeSwReport", enableHomeSwReport);
 			msgIN.route("/enableDirReport", enableDirReport);
 			msgIN.route("/enableMotorStatusReport", enableMotorStatusReport);
 			msgIN.route("/enableSwEventReport", enableSwEventReport);
 			msgIN.route("/enableCommandErrorReport", enableCommandErrorReport);
 			msgIN.route("/enableUvloReport", enableUvloReport);
 			msgIN.route("/enableThermalStatusReport", enableThermalStatusReport);
-			msgIN.route("/enableOcdReport", enableOcdReport);
+			msgIN.route("/enableOverCurrentReport", enableOverCurrentReport);
 			msgIN.route("/enableStallReport", enableStallReport);
 			//msgIN.route("/getDir", getDir);
 
-			msgIN.route("/configMicrostepMode", configMicrostepMode);
+			msgIN.route("/setMicrostepMode", setMicrostepMode);
 			msgIN.route("/getMicrostepMode", getMicrostepMode);
-			msgIN.route("/getSwMode", getSwMode);
-			msgIN.route("/setSwMode", setSwMode);
+			msgIN.route("/getHomeSwMode", getHomeSwMode);
+			msgIN.route("/setHomeSwMode", setHomeSwMode);
 			msgIN.route("/setStallThreshold", setStallThreshold);
 			msgIN.route("/getStallThreshold", getStallThreshold);
+			msgIN.route("/setOverCurrentThreshold", setOverCurrentThreshold);
+			msgIN.route("/getOverCurrentThreshold", getOverCurrentThreshold);
 			msgIN.route("/setLowSpeedOptimizeThreshold", setLowSpeedOptimizeThreshold);
 			msgIN.route("/getLowSpeedOptimizeThreshold", getLowSpeedOptimizeThreshold);
 
@@ -1202,6 +1384,7 @@ void OSCMsgReceive() {
 			//msgIN.route("/setDecRaw", setDecRaw);
 			//msgIN.route("/getSpdProfileRaw",getSpdProfileRaw);
 		}
+		turnOnRXL();
 	}
 }
 
@@ -1269,6 +1452,14 @@ void sendStatusDebug(char* address, int32_t data1, int32_t data2, int32_t data3)
 	newMes.empty();
 }
 
+uint8_t convertThermalStatus(uint8_t input) {
+	uint8_t output = 0;
+	input &= 0x03;
+	if ( (input >> 1) == LOW ) { output = 2; } // TH_SD flag, active low
+	else { output = ((input & 0x01) == LOW); } // TH_WRN flag, active low
+	return output;
+}
+
 void checkStatus() {
 	uint32_t t;
 	for (uint8_t i = 0; i < NUM_L6470; i++)
@@ -1288,44 +1479,49 @@ void checkStatus() {
 		//	busy[i] = t;
 		//	if ( reportBUSY[i] ) sendTwoData("/busy", i + 1, t);
 		//}
-		// SW_F, low for open, high for close
-		t = (status & STATUS_SW_F) > 0;
-		if (swState[i] != t)
-		{
-			swState[i] = t;
-			if ( reportSwStatus[i] ) sendTwoData("/sw", i + 1, t);
-		}
-		// SW_EVN, active high
-		t = (status & STATUS_SW_EVN) > 0;
-		if (t && reportSwEvn[i] ) sendOneDatum("/swEvent", i + 1);
+
 		// DIR
 		t = (status & STATUS_DIR) > 0;
 		if (dir[i] != t)
 		{
 			dir[i] = t;
-			if ( reportDir[i]) sendTwoData("/dir", i + 1, t);
+			if (reportDir[i]) sendTwoData("/dir", i + 1, t);
 		}
+		// SW_F, low for open, high for close
+		t = (status & STATUS_SW_F) > 0;
+		if (swState[i] != t)
+		{
+			swState[i] = t;
+			if (reportHomeSwStatus[i]) getHomeSw(i + 1);
+		}
+		// SW_EVN, active high
+		t = (status & STATUS_SW_EVN) > 0;
+		if (t && reportSwEvn[i] ) sendOneDatum("/swEvent", i + 1);
 		// MOT_STATUS
 		t = (status & STATUS_MOT_STATUS) >> 5;
 		if (motorStatus[i] != t) {
 			motorStatus[i] = t;
-			if (reportMotorStatus[i]) sendTwoData("/motorStatus", i + 1, reportMotorStatus[i]);
+			if (reportMotorStatus[i]) sendTwoData("/motorStatus", i + 1, motorStatus[i]);
 		}
 		// NOTPREF_CMD + WRONG_CMD, both active high
 		t = (status & (STATUS_NOTPERF_CMD | STATUS_WRONG_CMD)) >> 7;
 		if ((t != 0) && (reportCommandError[i])) sendTwoData("/commandError", i + 1, t);
 		// UVLO, active low
 		t = (status & STATUS_UVLO) == 0;
-		if (t && reportUVLO[i]) sendOneDatum("/UVLO", i + 1);
+		if ( t != uvloStatus[i] )
+		{
+			uvloStatus[i] = !uvloStatus[i];
+			if ( reportUVLO[i] ) sendTwoData("/uvlo", i + 1, uvloStatus[i]);
+		}
 		// TH_WRN & TH_SD, both active low
-		t = (status & (STATUS_TH_WRN | STATUS_TH_SD)) >> 10;
+		t = convertThermalStatus((status & (STATUS_TH_WRN | STATUS_TH_SD)) >> 10);	
 		if (thermalStatus[i] != t) {
 			thermalStatus[i] = t;
 			if (reportThermalStatus[i]) sendTwoData("/thermalStatus", i + 1, thermalStatus[i]);
 		}
 		// OCD, active low
 		t = (status & STATUS_OCD) == 0;
-		if (t && reportOCD[i]) sendOneDatum("/OCD", i + 1);
+		if (t && reportOCD[i]) sendOneDatum("/overCurrent", i + 1);
 
 		// STEP_LOSS_A&B, active low
 		t = (status & (STATUS_STEP_LOSS_A | STATUS_STEP_LOSS_B)) >> 13;
@@ -1333,11 +1529,44 @@ void checkStatus() {
 	}
 }
 
+void checkLED(uint32_t _currentTimeMillis) {
+	if ( rxLedEnabled )
+	{
+		if ((uint32_t)(_currentTimeMillis - RXL_blinkStartTime) >= RXL_TXL_BLINK_DURATION)
+		{
+			rxLedEnabled = false;
+			digitalWrite(PIN_LED_RXL, HIGH); // turn off
+		}
+	}
+	if (txLedEnabled)
+	{
+		if ((uint32_t)(_currentTimeMillis - TXL_blinkStartTime) >= RXL_TXL_BLINK_DURATION)
+		{
+			txLedEnabled = false;
+			digitalWrite(PIN_LED_TXL, HIGH); // turn off
+		}
+	}
+}
+
 void updateServo(uint32_t currentTimeMicros) {
+	static float eZ1[NUM_L6470] = { 0,0,0,0,0,0,0,0 },
+		eZ2[NUM_L6470] = { 0,0,0,0,0,0,0,0 },
+		integral[NUM_L6470] = { 0,0,0,0,0,0,0,0 };
+	float spd = 0.0;
 	if ((uint32_t)(currentTimeMicros - lastServoUpdateTime) >= 100) {
 		for (uint8_t i = 0; i < 8; i++) {
 			if (isServoMode[i]) {
-				float spd = (targetPosition[i] - L6470[i].getPos()) * kP[i];
+				int32_t error = targetPosition[i] - L6470[i].getPos();
+				integral[i] += ((error + eZ1[i]) / 2.0f);
+				if (integral[i] > 1500.0) integral[i] = 1500.0;
+				else if (integral[i] < -1500.0) integral[i] = -1500.0;
+				if (abs(error) > position_tolerance) {
+					double diff = error - eZ1[i];
+
+					spd = error * kP[i] + integral[i] * kI[i] + diff * kD[i];
+				}
+				eZ2[i] = eZ1[i];
+				eZ1[i] = error;
 				float absSpd = abs(spd);
 				if (absSpd < 1.) {
 					spd = 0.0;
@@ -1357,6 +1586,7 @@ void loop() {
 	if ((uint32_t)(currentTimeMillis - lastPollTime) >= STATUS_POLL_PERIOD)
 	{
 		checkStatus();
+		checkLED(currentTimeMillis);
 		lastPollTime = currentTimeMillis;
 	}
 	OSCMsgReceive();

@@ -41,6 +41,12 @@ byte AutoDriver::getStepMode() {
   return (byte)(getParam(STEP_MODE) & 0x07);
 }
 
+// Get current speed
+float AutoDriver::getSpeed()
+{
+	return spdParse(getParam(SPEED));
+}
+
 // This is the maximum speed the dSPIN will attempt to produce.
 void AutoDriver::setMaxSpeed(float stepsPerSecond)
 {
