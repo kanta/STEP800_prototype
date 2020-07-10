@@ -496,7 +496,7 @@
 									"numoutlets" : 1,
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 488.333333333333371, 29.0, 238.0, 22.0 ],
-									"text" : "/stall 8"
+									"text" : "/speed 1 -0."
 								}
 
 							}
@@ -7873,7 +7873,7 @@
 						}
 ,
 						"classnamespace" : "box",
-						"rect" : [ -1602.0, 183.0, 1054.0, 780.0 ],
+						"rect" : [ 0.0, 26.0, 1054.0, 780.0 ],
 						"bglocked" : 0,
 						"openinpresentation" : 0,
 						"default_fontsize" : 12.0,
@@ -8020,7 +8020,7 @@
 									"numoutlets" : 1,
 									"outlettype" : [ "" ],
 									"patching_rect" : [ 512.0, 161.0, 50.0, 22.0 ],
-									"text" : "8"
+									"text" : "5"
 								}
 
 							}
@@ -8310,8 +8310,8 @@
 									"maxclass" : "newobj",
 									"numinlets" : 1,
 									"numoutlets" : 0,
-									"patching_rect" : [ 69.0, 484.0, 73.0, 22.0 ],
-									"text" : "s toStep800"
+									"patching_rect" : [ 69.0, 484.0, 79.0, 22.0 ],
+									"text" : "s toSTEP800"
 								}
 
 							}
@@ -9297,11 +9297,13 @@
 								"box" : 								{
 									"dontreplace" : 1,
 									"id" : "obj-36",
+									"linecount" : 2,
 									"maxclass" : "message",
 									"numinlets" : 2,
 									"numoutlets" : 1,
 									"outlettype" : [ "" ],
-									"patching_rect" : [ 103.0, 82.0, 166.0, 22.0 ]
+									"patching_rect" : [ 103.0, 82.0, 166.0, 36.0 ],
+									"text" : "\"Jul 10 2020 15:59:00 STEP800proto_r3\""
 								}
 
 							}
