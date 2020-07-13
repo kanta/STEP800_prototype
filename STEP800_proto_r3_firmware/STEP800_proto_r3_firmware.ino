@@ -45,7 +45,7 @@ boolean isDestIpSet = false;
 bool busy[NUM_OF_MOTOR];
 bool flag[NUM_OF_MOTOR];
 bool HiZ[NUM_OF_MOTOR];
-bool swState[NUM_OF_MOTOR];
+bool homeSwState[NUM_OF_MOTOR];
 bool dir[NUM_OF_MOTOR];
 bool uvloStatus[NUM_OF_MOTOR];
 uint8_t motorStatus[NUM_OF_MOTOR];
@@ -102,9 +102,9 @@ AutoDriver stepper[] = {
 
 // servo mode
 uint32_t lastServoUpdateTime;
-int32_t targetPosition[8]; // these values will be initialized at setup()
-float kP[8], kI[8], kD[8];
-boolean isServoMode[8];
+int32_t targetPosition[NUM_OF_MOTOR]; // these values will be initialized at setup()
+float kP[NUM_OF_MOTOR], kI[NUM_OF_MOTOR], kD[NUM_OF_MOTOR];
+boolean isServoMode[NUM_OF_MOTOR];
 constexpr auto position_tolerance = 20; // steps
 
 // Tx, Rx LED
@@ -170,7 +170,7 @@ void setup()
 		busy[i] = false;
 		flag[i] = false;
 		HiZ[i] = false;
-		swState[i] = false;
+		homeSwState[i] = false;
 		dir[i] = false;
 		uvloStatus[i] = false;
 		motorStatus[i] = 0;
@@ -231,6 +231,7 @@ void resetMotorDriver(uint8_t deviceID) {
 		stepper[deviceID].resetDev();
 		stepper[deviceID].configStepMode(STEP_FS_128);
 		stepper[deviceID].setMaxSpeed(650.);
+		stepper[deviceID].setLoSpdOpt(true);
 		stepper[deviceID].setFullSpeed(15000.);
 		stepper[deviceID].setAcc(2000.);
 		stepper[deviceID].setDec(2000.);
@@ -309,7 +310,7 @@ void sendOneString(char* address, const char* data) {
 	turnOnTXL();
 }
 
-#pragma region config
+#pragma region config_commands_osc_listener
 void setDestIp(OSCMessage& msg, int addrOffset) {
 	bool bIpUpdated = false;
 	OSCMessage newMes("/destIp");
@@ -522,7 +523,7 @@ void getHomeSw(OSCMessage& msg, int addrOffset) {
 void getHomeSw(uint8_t motorID) {
 	if (!isDestIpSet) { return; }
 	OSCMessage newMes("/homeSw");
-	newMes.add(motorID).add(swState[motorID - MOTOR_ID_FIRST]).add(dir[motorID - MOTOR_ID_FIRST]);
+	newMes.add(motorID).add(homeSwState[motorID - MOTOR_ID_FIRST]).add(dir[motorID - MOTOR_ID_FIRST]);
 	Udp.beginPacket(destIp, outPort);
 	newMes.send(Udp);
 	Udp.endPacket();
@@ -762,9 +763,9 @@ void getLowSpeedOptimizeThreshold(uint8_t motorID) {
 	turnOnTXL();
 }
 
-#pragma endregion config
+#pragma endregion config_commands_osc_listener
 
-#pragma region KVAL
+#pragma region KVAL_commands_osc_listener
 
 void setKVAL(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = msg.getInt(0);
@@ -863,9 +864,9 @@ void getKVAL(uint8_t motorID) {
 	turnOnTXL();
 }
 
-#pragma endregion KVAL
+#pragma endregion KVAL_commands_osc_listener
 
-#pragma region speed
+#pragma region speed_commands_osc_listener
 
 void setSpeedProfile(OSCMessage& msg, int addrOffset) {
 	uint8_t target = msg.getInt(0);
@@ -981,9 +982,9 @@ void getSpeed(OSCMessage& msg, int addrOffset) {
 	}
 }
 
-#pragma endregion speed
+#pragma endregion speed_commands_osc_listener
 
-#pragma region motion
+#pragma region motion_commands_osc_listener
 
 void getPosition(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = msg.getInt(0);
@@ -1209,9 +1210,9 @@ void hardHiZ(OSCMessage& msg, int addrOffset) {
 	}
 }
 
-#pragma endregion motion
+#pragma endregion motion_commands_osc_listener
 
-#pragma region servo
+#pragma region servo_commands_osc_listener
 
 void setTargetPosition(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = msg.getInt(0);
@@ -1313,7 +1314,7 @@ void getServoParam(OSCMessage& msg, int addrOffset) {
 	}
 }
 
-#pragma endregion servo
+#pragma endregion servo_commands_osc_listener
 
 void OSCMsgReceive() {
 
@@ -1523,12 +1524,12 @@ void checkStatus() {
 		}
 		// SW_F, low for open, high for close
 		t = (status & STATUS_SW_F) > 0;
-		if (swState[i] != t)
+		if (homeSwState[i] != t)
 		{
-			swState[i] = t;
+			homeSwState[i] = t;
 			if (reportHomeSwStatus[i]) getHomeSw(i + 1);
 		}
-		// SW_EVN, active high
+		// SW_EVN, active high, latched
 		t = (status & STATUS_SW_EVN) > 0;
 		if (t && reportSwEvn[i] ) sendOneInt("/swEvent", i + 1);
 		// MOT_STATUS
@@ -1553,11 +1554,11 @@ void checkStatus() {
 			thermalStatus[i] = t;
 			if (reportThermalStatus[i]) sendTwoInt("/thermalStatus", i + 1, thermalStatus[i]);
 		}
-		// OCD, active low
+		// OCD, active low, latched
 		t = (status & STATUS_OCD) == 0;
 		if (t && reportOCD[i]) sendOneInt("/overCurrent", i + 1);
 
-		// STEP_LOSS_A&B, active low
+		// STEP_LOSS_A&B, active low, latched
 		t = (status & (STATUS_STEP_LOSS_A | STATUS_STEP_LOSS_B)) >> 13;
 		if ((t !=  3) && reportStall[i]) sendOneInt("/stall", i + 1);
 	}
@@ -1621,13 +1622,13 @@ void loop() {
 	{
 		checkStatus();
 		checkLED(currentTimeMillis);
+		if (hasShiftRegisterUpdated()) {
+			updateFlagBusy();
+			updateMyId();
+		}
 		lastPollTime = currentTimeMillis;
 	}
 	OSCMsgReceive();
 
-	if (hasShiftRegisterUpdated()) {
-		updateFlagBusy();
-		updateMyId();
-	}
 	updateServo(currentTimeMicros);
 }
