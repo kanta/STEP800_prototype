@@ -46,3 +46,4 @@ Release
 #Visual Studio
 *.db
 *.ipch
+.vs/
