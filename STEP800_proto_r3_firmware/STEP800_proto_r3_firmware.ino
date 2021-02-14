@@ -266,6 +266,21 @@ void turnOnTXL() {
 	txLedEnabled = true;
 }
 
+/************************* float -> int cast helper for OSC message ****************************/
+int getInt(OSCMessage &msg, uint8_t offset)
+{
+	int msgVal = 0;
+	if (msg.isFloat(offset))
+	{
+		msgVal = (int) msg.getFloat(offset);
+	}
+	else
+	{
+		msgVal = getInt(msg, offset);
+	}
+	return msgVal;
+}
+
 
 void sendOneInt(char* address, int32_t data) {
 	if (!isDestIpSet) { return; }
@@ -337,7 +352,7 @@ void getVersion(OSCMessage& msg, int addrOffset) {
 
 // reset the motor driver chip and setup it
 void resetMotorDriver(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		resetMotorDriver(motorID);
 	}
@@ -350,7 +365,7 @@ void resetMotorDriver(OSCMessage& msg, int addrOffset) {
 
 // simply send reset command to the driverchip via SPI
 void resetDev(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].resetDev();
 	}
@@ -362,8 +377,8 @@ void resetDev(OSCMessage& msg, int addrOffset) {
 }
 
 void enableFlagReport(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	bool bEnable = msg.getInt(1) > 0;
+	uint8_t motorID = getInt(msg, 0);
+	bool bEnable = getInt(msg, 1) > 0;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		reportFLAG[motorID - 1] = bEnable;
 	}
@@ -375,8 +390,8 @@ void enableFlagReport(OSCMessage& msg, int addrOffset) {
 }
 
 void enableBusyReport(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	bool bEnable = msg.getInt(1) > 0;
+	uint8_t motorID = getInt(msg, 0);
+	bool bEnable = getInt(msg, 1) > 0;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		reportBUSY[motorID - 1] = bEnable;
 	}
@@ -388,8 +403,8 @@ void enableBusyReport(OSCMessage& msg, int addrOffset) {
 }
 
 void enableHizReport(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	bool bEnable = msg.getInt(1) > 0;
+	uint8_t motorID = getInt(msg, 0);
+	bool bEnable = getInt(msg, 1) > 0;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		reportHiZ[motorID - 1] = bEnable;
 	}
@@ -400,8 +415,8 @@ void enableHizReport(OSCMessage& msg, int addrOffset) {
 	}
 }
 void enableHomeSwReport(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	bool bEnable = msg.getInt(1) > 0;
+	uint8_t motorID = getInt(msg, 0);
+	bool bEnable = getInt(msg, 1) > 0;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		reportHomeSwStatus[motorID - 1] = bEnable;
 	}
@@ -412,8 +427,8 @@ void enableHomeSwReport(OSCMessage& msg, int addrOffset) {
 	}
 }
 void enableDirReport(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	bool bEnable = msg.getInt(1) > 0;
+	uint8_t motorID = getInt(msg, 0);
+	bool bEnable = getInt(msg, 1) > 0;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		reportDir[motorID - 1] = bEnable;
 	}
@@ -424,8 +439,8 @@ void enableDirReport(OSCMessage& msg, int addrOffset) {
 	}
 }
 void enableMotorStatusReport(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	bool bEnable = msg.getInt(1) > 0;
+	uint8_t motorID = getInt(msg, 0);
+	bool bEnable = getInt(msg, 1) > 0;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		reportMotorStatus[motorID - 1] = bEnable;
 	}
@@ -436,8 +451,8 @@ void enableMotorStatusReport(OSCMessage& msg, int addrOffset) {
 	}
 }
 void enableSwEventReport(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	bool bEnable = msg.getInt(1) > 0;
+	uint8_t motorID = getInt(msg, 0);
+	bool bEnable = getInt(msg, 1) > 0;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		reportSwEvn[motorID - 1] = bEnable;
 	}
@@ -448,8 +463,8 @@ void enableSwEventReport(OSCMessage& msg, int addrOffset) {
 	}
 }
 void enableCommandErrorReport(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	bool bEnable = msg.getInt(1) > 0;
+	uint8_t motorID = getInt(msg, 0);
+	bool bEnable = getInt(msg, 1) > 0;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		reportCommandError[motorID - 1] = bEnable;
 	}
@@ -460,8 +475,8 @@ void enableCommandErrorReport(OSCMessage& msg, int addrOffset) {
 	}
 }
 void enableUvloReport(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	bool bEnable = msg.getInt(1) > 0;
+	uint8_t motorID = getInt(msg, 0);
+	bool bEnable = getInt(msg, 1) > 0;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		reportUVLO[motorID - 1] = bEnable;
 	}
@@ -472,8 +487,8 @@ void enableUvloReport(OSCMessage& msg, int addrOffset) {
 	}
 }
 void enableThermalStatusReport(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	bool bEnable = msg.getInt(1) > 0;
+	uint8_t motorID = getInt(msg, 0);
+	bool bEnable = getInt(msg, 1) > 0;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		reportThermalStatus[motorID - 1] = bEnable;
 	}
@@ -484,8 +499,8 @@ void enableThermalStatusReport(OSCMessage& msg, int addrOffset) {
 	}
 }
 void enableOverCurrentReport(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	bool bEnable = msg.getInt(1) > 0;
+	uint8_t motorID = getInt(msg, 0);
+	bool bEnable = getInt(msg, 1) > 0;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		reportOCD[motorID - 1] = bEnable;
 	}
@@ -496,9 +511,12 @@ void enableOverCurrentReport(OSCMessage& msg, int addrOffset) {
 	}
 }
 void enableStallReport(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	bool bEnable = msg.getInt(1) > 0;
-	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
+	// uint8_t motorID = msg.getInt(0);
+	// bool bEnable = msg.getInt(1) > 0;
+	uint8_t motorID = getInt(msg, 0);
+	bool bEnable = getInt(msg, 1) > 0;
+	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST)
+	{
 		reportStall[motorID - 1] = bEnable;
 	}
 	else if (motorID == MOTOR_ID_ALL) {
@@ -510,7 +528,7 @@ void enableStallReport(OSCMessage& msg, int addrOffset) {
 
 void getHomeSw(OSCMessage& msg, int addrOffset) {
 	if (!isDestIpSet) { return; }
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		getHomeSw(motorID);
 	}
@@ -533,8 +551,9 @@ void getHomeSw(uint8_t motorID) {
 
 void getBusy(OSCMessage& msg, int addrOffset) {
 	if (!isDestIpSet) { return; }
-	uint8_t motorID = msg.getInt(0);
-	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
+	uint8_t motorID = getInt(msg, 0);
+	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST)
+	{
 		sendTwoInt("/busy", motorID, busy[motorID - MOTOR_ID_FIRST]);
 	}
 	else if (motorID == MOTOR_ID_ALL) {
@@ -545,7 +564,7 @@ void getBusy(OSCMessage& msg, int addrOffset) {
 }
 void getUvlo(OSCMessage& msg, int addrOffset) {
 	if (!isDestIpSet) { return; }
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		sendTwoInt("/uvlo", motorID, uvloStatus[motorID - MOTOR_ID_FIRST]);
 	}
@@ -558,8 +577,9 @@ void getUvlo(OSCMessage& msg, int addrOffset) {
 
 void getMotorStatus(OSCMessage& msg, int addrOffset) {
 	if (!isDestIpSet) { return; }
-	uint8_t motorID = msg.getInt(0);
-	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
+	uint8_t motorID = getInt(msg, 0);
+	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST)
+	{
 		sendTwoInt("/motorStatus", motorID, motorStatus[motorID - MOTOR_ID_FIRST]);
 	}
 	else if (motorID == MOTOR_ID_ALL) {
@@ -571,7 +591,7 @@ void getMotorStatus(OSCMessage& msg, int addrOffset) {
 
 void getThermalStatus(OSCMessage& msg, int addrOffset) {
 	if (!isDestIpSet) { return; }
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		sendTwoInt("/thermalStatus", motorID, thermalStatus[motorID - MOTOR_ID_FIRST]);
 	}
@@ -584,7 +604,7 @@ void getThermalStatus(OSCMessage& msg, int addrOffset) {
 
 void getStatus(OSCMessage& msg, int addrOffset) {
 	if (!isDestIpSet) { return; }
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		sendTwoInt("/status", motorID, stepper[motorID - MOTOR_ID_FIRST].getStatus());
 	}
@@ -610,8 +630,9 @@ void getStatusList(OSCMessage& msg, int addrOffset) {
 }
 
 void setMicrostepMode(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	uint8_t microstepMode = constrain(msg.getInt(1), STEP_FS, STEP_FS_128); // 0-7
+	uint8_t motorID = getInt(msg, 0);
+	uint8_t microstepMode = constrain(getInt(msg, 1), STEP_FS, STEP_FS_128); // 0-7
+
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].configStepMode(microstepMode);
 	}
@@ -624,7 +645,8 @@ void setMicrostepMode(OSCMessage& msg, int addrOffset) {
 
 void getMicrostepMode(OSCMessage& msg, int addrOffset) {
 	if (!isDestIpSet) { return; }
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
+
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		sendTwoInt("/microstepMode", motorID, stepper[motorID - MOTOR_ID_FIRST].getStepMode());
 	}
@@ -637,7 +659,7 @@ void getMicrostepMode(OSCMessage& msg, int addrOffset) {
 
 void getHomeSwMode(OSCMessage& msg, int addrOffset) {
 	if (!isDestIpSet) { return; }
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		sendTwoInt("/homeSwMode", motorID, stepper[motorID - MOTOR_ID_FIRST].getSwitchMode() > 0);
 	}
@@ -649,8 +671,9 @@ void getHomeSwMode(OSCMessage& msg, int addrOffset) {
 }
 
 void setHomeSwMode(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	uint16_t switchMode = (msg.getInt(1) > 0) ? SW_USER : SW_HARD_STOP;
+	uint8_t motorID = getInt(msg, 0);
+	uint16_t switchMode = (getInt(msg, 1) > 0) ? SW_USER : SW_HARD_STOP;
+
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].setSwitchMode(switchMode);
 	}
@@ -662,8 +685,9 @@ void setHomeSwMode(OSCMessage& msg, int addrOffset) {
 }
 
 void setStallThreshold(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	uint8_t threshold = msg.getInt(1) & 0x7F; // 7bit
+	uint8_t motorID = getInt(msg, 0);
+	uint8_t threshold = getInt(msg, 1) & 0x7F; // 7bit
+
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].setParam(STALL_TH, threshold);
 		getStallThreshold(motorID);
@@ -683,7 +707,7 @@ void getStallThreshold(uint8_t motorId) {
 	sendIdFloat("/stallThreshold", motorId, threshold);
 }
 void getStallThreshold(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		getStallThreshold(motorID);
 	}
@@ -695,8 +719,9 @@ void getStallThreshold(OSCMessage& msg, int addrOffset) {
 }
 
 void setOverCurrentThreshold(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	uint8_t threshold = msg.getInt(1) & 0x0F; // 4bit
+	uint8_t motorID = getInt(msg, 0);
+	uint8_t threshold = getInt(msg, 1) & 0x0F; // 4bit
+
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].setParam(OCD_TH, threshold);
 		getOverCurrentThreshold(motorID);
@@ -715,7 +740,7 @@ void getOverCurrentThreshold(uint8_t motorId) {
 	sendIdFloat("/overCurrentThreshold", motorId, threshold);
 }
 void getOverCurrentThreshold(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		getOverCurrentThreshold(motorID);
 	}
@@ -727,7 +752,7 @@ void getOverCurrentThreshold(OSCMessage& msg, int addrOffset) {
 }
 
 void setLowSpeedOptimizeThreshold(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	float stepsPerSecond = msg.getFloat(1);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].setMinSpeed(stepsPerSecond, true);
@@ -739,7 +764,7 @@ void setLowSpeedOptimizeThreshold(OSCMessage& msg, int addrOffset) {
 	}
 }
 void getLowSpeedOptimizeThreshold(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		getLowSpeedOptimizeThreshold(motorID);
 	}
@@ -768,11 +793,12 @@ void getLowSpeedOptimizeThreshold(uint8_t motorID) {
 #pragma region KVAL_commands_osc_listener
 
 void setKVAL(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	int hold = constrain(msg.getInt(1), 0, 255);
-	int run = constrain(msg.getInt(2), 0, 255);
-	int acc = constrain(msg.getInt(3), 0, 255);
-	int dec = constrain(msg.getInt(4), 0, 255);
+	uint8_t motorID = getInt(msg, 0);
+	int hold = constrain(getInt(msg, 1), 0, 255);
+	int run = constrain(getInt(msg, 2), 0, 255);
+	int acc = constrain(getInt(msg, 3), 0, 255);
+	int dec = constrain(getInt(msg, 4), 0, 255);
+
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].setHoldKVAL(hold);
 		stepper[motorID - MOTOR_ID_FIRST].setRunKVAL(run);
@@ -789,8 +815,9 @@ void setKVAL(OSCMessage& msg, int addrOffset) {
 	}
 }
 void setHoldKVAL(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	uint8_t kvalInput = constrain(msg.getInt(1), 0, 255);
+	uint8_t motorID = getInt(msg, 0);
+	uint8_t kvalInput = constrain(getInt(msg, 1), 0, 255);
+
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].setHoldKVAL(kvalInput);
 	}
@@ -801,8 +828,8 @@ void setHoldKVAL(OSCMessage& msg, int addrOffset) {
 	}
 }
 void setRunKVAL(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	uint8_t kvalInput = constrain(msg.getInt(1), 0, 255);
+	uint8_t motorID = getInt(msg, 0);
+	uint8_t kvalInput = constrain(getInt(msg, 1), 0, 255);
 
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].setRunKVAL(kvalInput);
@@ -814,8 +841,9 @@ void setRunKVAL(OSCMessage& msg, int addrOffset) {
 	}
 }
 void setAccKVAL(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	uint8_t kvalInput = constrain(msg.getInt(1), 0, 255);
+	uint8_t motorID = getInt(msg, 0);
+	uint8_t kvalInput = constrain(getInt(msg, 1), 0, 255);
+
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].setAccKVAL(kvalInput);
 	}
@@ -826,8 +854,9 @@ void setAccKVAL(OSCMessage& msg, int addrOffset) {
 	}
 }
 void setDecKVAL(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	uint8_t kvalInput = constrain(msg.getInt(1), 0, 255);
+	uint8_t motorID = getInt(msg, 0);
+	uint8_t kvalInput = constrain(getInt(msg, 1), 0, 255);
+
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].setDecKVAL(kvalInput);
 	}
@@ -839,7 +868,7 @@ void setDecKVAL(OSCMessage& msg, int addrOffset) {
 }
 
 void getKVAL(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		getKVAL(motorID);
 	}
@@ -869,7 +898,8 @@ void getKVAL(uint8_t motorID) {
 #pragma region speed_commands_osc_listener
 
 void setSpeedProfile(OSCMessage& msg, int addrOffset) {
-	uint8_t target = msg.getInt(0);
+	uint8_t target = getInt(msg, 0);
+
 	float acc = msg.getFloat(1);
 	float dec = msg.getFloat(2);
 	float maxSpeed = msg.getFloat(3);
@@ -890,7 +920,7 @@ void setSpeedProfile(OSCMessage& msg, int addrOffset) {
 }
 
 void setMaxSpeed(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	float stepsPerSecond = msg.getFloat(1);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].setMaxSpeed(stepsPerSecond);
@@ -904,7 +934,7 @@ void setMaxSpeed(OSCMessage& msg, int addrOffset) {
 // MIN_SPEED register is set by setLowSpeedOptimizeThreshold function.
 
 void setFullstepSpeed(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	float stepsPerSecond = msg.getFloat(1);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].setFullSpeed(stepsPerSecond);
@@ -916,7 +946,7 @@ void setFullstepSpeed(OSCMessage& msg, int addrOffset) {
 	}
 }
 void setAcc(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	float stepsPerSecondPerSecond = msg.getFloat(1);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].setAcc(stepsPerSecondPerSecond);
@@ -928,7 +958,7 @@ void setAcc(OSCMessage& msg, int addrOffset) {
 	}
 }
 void setDec(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	float stepsPerSecondPerSecond = msg.getFloat(1);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].setDec(stepsPerSecondPerSecond);
@@ -941,7 +971,7 @@ void setDec(OSCMessage& msg, int addrOffset) {
 }
 
 void getSpeedProfile(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		getSpeedProfile(motorID);
 	}
@@ -966,7 +996,7 @@ void getSpeedProfile(uint8_t motorID) {
 }
 
 void getSpeed(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	float s;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		s = stepper[motorID - MOTOR_ID_FIRST].getSpeed();
@@ -987,7 +1017,7 @@ void getSpeed(OSCMessage& msg, int addrOffset) {
 #pragma region motion_commands_osc_listener
 
 void getPosition(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		sendTwoInt("/position", motorID, stepper[motorID - MOTOR_ID_FIRST].getPos());
 	}
@@ -998,7 +1028,7 @@ void getPosition(OSCMessage& msg, int addrOffset) {
 	}
 }
 void getMark(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		sendTwoInt("/mark", motorID, stepper[motorID - MOTOR_ID_FIRST].getMark());
 	}
@@ -1010,11 +1040,11 @@ void getMark(OSCMessage& msg, int addrOffset) {
 }
 
 void run(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 
 	float stepsPerSec = 0;
 	if ( msg.isFloat(1) ) { stepsPerSec = msg.getFloat(1); }
-	else if ( msg.isInt(1) ) { stepsPerSec = (float)msg.getInt(1); }
+	else if ( msg.isInt(1) ) { stepsPerSec = (float)getInt(msg, 1); }
 	
 	boolean dir = stepsPerSec > 0;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
@@ -1028,8 +1058,8 @@ void run(OSCMessage& msg, int addrOffset) {
 }
 
 void move(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	int32_t numSteps = msg.getInt(1);
+	uint8_t motorID = getInt(msg, 0);
+	int32_t numSteps = getInt(msg, 1);
 	boolean dir = numSteps > 0;
 	numSteps = abs(numSteps);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
@@ -1042,9 +1072,9 @@ void move(OSCMessage& msg, int addrOffset) {
 	}
 }
 void goTo(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 
-	int32_t pos = msg.getInt(1);
+	int32_t pos = getInt(msg, 1);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].goTo(pos);
 	}
@@ -1055,9 +1085,9 @@ void goTo(OSCMessage& msg, int addrOffset) {
 	}
 }
 void goToDir(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	boolean dir = msg.getInt(1) > 0;
-	int32_t pos = msg.getInt(2);
+	uint8_t motorID = getInt(msg, 0);
+	boolean dir = getInt(msg, 1) > 0;
+	int32_t pos = getInt(msg, 2);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].goToDir(dir, pos);
 	}
@@ -1069,11 +1099,11 @@ void goToDir(OSCMessage& msg, int addrOffset) {
 }
 
 void goUntil(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	boolean action = msg.getInt(1) > 0;
+	uint8_t motorID = getInt(msg, 0);
+	boolean action = getInt(msg, 1) > 0;
 	float stepsPerSec = 0;
 	if (msg.isFloat(2)) { stepsPerSec = msg.getFloat(2); }
-	else if (msg.isInt(2)) { stepsPerSec = (float)msg.getInt(2); }
+	else if (msg.isInt(2)) { stepsPerSec = (float)getInt(msg, 2); }
 	boolean dir = stepsPerSec > 0.;
 	stepsPerSec = abs(stepsPerSec);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
@@ -1087,9 +1117,9 @@ void goUntil(OSCMessage& msg, int addrOffset) {
 }
 
 void releaseSw(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	boolean action = msg.getInt(1) > 0;
-	boolean dir = msg.getInt(2) > 0;
+	uint8_t motorID = getInt(msg, 0);
+	boolean action = getInt(msg, 1) > 0;
+	boolean dir = getInt(msg, 2) > 0;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].releaseSw(action, dir);
 	}
@@ -1100,7 +1130,7 @@ void releaseSw(OSCMessage& msg, int addrOffset) {
 	}
 }
 void goHome(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].goHome();
 	}
@@ -1111,7 +1141,7 @@ void goHome(OSCMessage& msg, int addrOffset) {
 	}
 }
 void goMark(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].goMark();
 	}
@@ -1122,8 +1152,8 @@ void goMark(OSCMessage& msg, int addrOffset) {
 	}
 }
 void setMark(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	int32_t newMark = msg.getInt(1);
+	uint8_t motorID = getInt(msg, 0);
+	int32_t newMark = getInt(msg, 1);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].setMark(newMark);
 	}
@@ -1134,8 +1164,8 @@ void setMark(OSCMessage& msg, int addrOffset) {
 	}
 }
 void setPosition(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	int32_t newPos = msg.getInt(1);
+	uint8_t motorID = getInt(msg, 0);
+	int32_t newPos = getInt(msg, 1);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].setPos(newPos);
 	}
@@ -1146,7 +1176,7 @@ void setPosition(OSCMessage& msg, int addrOffset) {
 	}
 }
 void resetPos(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		stepper[motorID - MOTOR_ID_FIRST].resetPos();
 	}
@@ -1158,7 +1188,7 @@ void resetPos(OSCMessage& msg, int addrOffset) {
 }
 
 void softStop(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		isServoMode[motorID - MOTOR_ID_FIRST] = false;
 		stepper[motorID - MOTOR_ID_FIRST].softStop();
@@ -1171,7 +1201,7 @@ void softStop(OSCMessage& msg, int addrOffset) {
 	}
 }
 void hardStop(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		isServoMode[motorID - MOTOR_ID_FIRST] = false;
 		stepper[motorID - MOTOR_ID_FIRST].hardStop();
@@ -1184,7 +1214,7 @@ void hardStop(OSCMessage& msg, int addrOffset) {
 	}
 }
 void softHiZ(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		isServoMode[motorID - MOTOR_ID_FIRST] = false;
 		stepper[motorID - MOTOR_ID_FIRST].softHiZ();
@@ -1197,7 +1227,7 @@ void softHiZ(OSCMessage& msg, int addrOffset) {
 	}
 }
 void hardHiZ(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		isServoMode[motorID - MOTOR_ID_FIRST] = false;
 		stepper[motorID - MOTOR_ID_FIRST].hardHiZ();
@@ -1215,8 +1245,8 @@ void hardHiZ(OSCMessage& msg, int addrOffset) {
 #pragma region servo_commands_osc_listener
 
 void setTargetPosition(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	int32_t position = msg.getInt(1);
+	uint8_t motorID = getInt(msg, 0);
+	int32_t position = getInt(msg, 1);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		targetPosition[motorID - MOTOR_ID_FIRST] = position;
 	}
@@ -1229,13 +1259,13 @@ void setTargetPosition(OSCMessage& msg, int addrOffset) {
 
 void setTargetPositionList(OSCMessage& msg, int addrOffset) {
 	for (uint8_t i = 0; i < NUM_OF_MOTOR; i++) {
-		targetPosition[i] = msg.getInt(i);
+		targetPosition[i] = getInt(msg, i);
 	}
 }
 
 void enableServoMode(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
-	bool bEnable = msg.getInt(1) > 0;
+	uint8_t motorID = getInt(msg, 0);
+	bool bEnable = getInt(msg, 1) > 0;
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		if (bEnable) {
 			targetPosition[motorID - MOTOR_ID_FIRST] = stepper[motorID - MOTOR_ID_FIRST].getPos();
@@ -1272,7 +1302,7 @@ void enableServoMode(OSCMessage& msg, int addrOffset) {
 }
 
 void setServoParam(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	float _kp = msg.getFloat(1), _ki = msg.getFloat(2), _kd = msg.getFloat(3);
 	if (_kp <= 0.0) _kp = 0;
 	if (_ki <= 0.0) _ki = 0;
@@ -1303,7 +1333,7 @@ void getServoParam(uint8_t motorID) {
 }
 
 void getServoParam(OSCMessage& msg, int addrOffset) {
-	uint8_t motorID = msg.getInt(0);
+	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
 		getServoParam(motorID);
 	}
