@@ -800,7 +800,7 @@ void getLowSpeedOptimizeThreshold(uint8_t motorID) {
 
 #pragma region KVAL_commands_osc_listener
 
-void setKVAL(OSCMessage& msg, int addrOffset) {
+void setKval(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = getInt(msg, 0);
 
 	int hold = constrain(getInt(msg, 1), 0, 255);
@@ -825,7 +825,7 @@ void setKVAL(OSCMessage& msg, int addrOffset) {
 	debug.print(F("KVAL set to: "), DEBUG_OSC);
 	debug.println(motorID, DEBUG_OSC);
 }
-void setHoldKVAL(OSCMessage& msg, int addrOffset) {
+void setHoldKval(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = getInt(msg, 0);
 	uint8_t kvalInput = constrain(getInt(msg, 1), 0, 255);
 
@@ -838,7 +838,7 @@ void setHoldKVAL(OSCMessage& msg, int addrOffset) {
 		}
 	}
 }
-void setRunKVAL(OSCMessage& msg, int addrOffset) {
+void setRunKval(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = getInt(msg, 0);
 	uint8_t kvalInput = constrain(getInt(msg, 1), 0, 255);
 
@@ -851,7 +851,7 @@ void setRunKVAL(OSCMessage& msg, int addrOffset) {
 		}
 	}
 }
-void setAccKVAL(OSCMessage& msg, int addrOffset) {
+void setAccKval(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = getInt(msg, 0);
 	uint8_t kvalInput = constrain(getInt(msg, 1), 0, 255);
 
@@ -864,7 +864,7 @@ void setAccKVAL(OSCMessage& msg, int addrOffset) {
 		}
 	}
 }
-void setDecKVAL(OSCMessage& msg, int addrOffset) {
+void setDecKval(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = getInt(msg, 0);
 	uint8_t kvalInput = constrain(getInt(msg, 1), 0, 255);
 
@@ -878,18 +878,18 @@ void setDecKVAL(OSCMessage& msg, int addrOffset) {
 	}
 }
 
-void getKVAL(OSCMessage& msg, int addrOffset) {
+void getKval(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
-		getKVAL(motorID);
+		getKval(motorID);
 	}
 	else if (motorID == MOTOR_ID_ALL) {
 		for (uint8_t i = 0; i < NUM_OF_MOTOR; i++) {
-			getKVAL(i + 1);
+			getKval(i + 1);
 		}
 	}
 }
-void getKVAL(uint8_t motorID) {
+void getKval(uint8_t motorID) {
 	if (!isDestIpSet) { return; }
 	OSCMessage newMes("/kval");
 	newMes.add((int32_t)motorID);
@@ -1410,12 +1410,12 @@ void OSCMsgReceive() {
 			msgIN.route("/getSpeedProfile", getSpeedProfile);
 
 			// KVAL
-			msgIN.route("/setKVAL", setKVAL);
-			msgIN.route("/setAccKVAL", setAccKVAL);
-			msgIN.route("/setDecKVAL", setDecKVAL);
-			msgIN.route("/setRunKVAL", setRunKVAL);
-			msgIN.route("/setHoldKVAL", setHoldKVAL);
-			msgIN.route("/getKVAL", getKVAL);
+			msgIN.route("/setKval", setKval);
+			msgIN.route("/setAccKval", setAccKval);
+			msgIN.route("/setDecKval", setDecKval);
+			msgIN.route("/setRunKval", setRunKval);
+			msgIN.route("/setHoldKval", setHoldKval);
+			msgIN.route("/getKval", getKval);
 
 			// config
 			msgIN.route("/setDestIp", setDestIp);
