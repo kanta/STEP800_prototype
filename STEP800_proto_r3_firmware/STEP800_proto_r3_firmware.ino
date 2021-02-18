@@ -276,7 +276,7 @@ int getInt(OSCMessage &msg, uint8_t offset)
 	}
 	else
 	{
-		msgVal = getInt(msg, offset);
+		msgVal = msg.getInt(offset);
 	}
 	return msgVal;
 }
