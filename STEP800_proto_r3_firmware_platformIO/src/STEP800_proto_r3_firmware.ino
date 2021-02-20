@@ -984,6 +984,7 @@ void setDec(OSCMessage& msg, int addrOffset) {
 void getSpeedProfile(OSCMessage& msg, int addrOffset) {
 	uint8_t motorID = getInt(msg, 0);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
+		motorID -= MOTOR_ID_FIRST;
 		getSpeedProfile(motorID);
 	}
 	else if (motorID == MOTOR_ID_ALL) {
@@ -996,9 +997,9 @@ void getSpeedProfile(uint8_t motorID) {
 	if (!isDestIpSet) { return; }
 	OSCMessage newMes("/speedProfile");
 	newMes.add((int32_t)motorID);
-	newMes.add((float)stepper[motorID - MOTOR_ID_FIRST].getAcc());
-	newMes.add((float)stepper[motorID - MOTOR_ID_FIRST].getDec());
-	newMes.add((float)stepper[motorID - MOTOR_ID_FIRST].getMaxSpeed());
+	newMes.add((float)stepper[motorID].getAcc());
+	newMes.add((float)stepper[motorID].getDec());
+	newMes.add((float)stepper[motorID].getMaxSpeed());
 	Udp.beginPacket(destIp, outPort);
 	newMes.send(Udp);
 	Udp.endPacket();
@@ -1118,11 +1119,16 @@ void goUntil(OSCMessage& msg, int addrOffset) {
 	boolean dir = stepsPerSec > 0.;
 	stepsPerSec = abs(stepsPerSec);
 	if (MOTOR_ID_FIRST <= motorID && motorID <= MOTOR_ID_LAST) {
-		stepper[motorID - MOTOR_ID_FIRST].goUntil(action, dir, stepsPerSec);
+		motorID -= MOTOR_ID_FIRST;
+		if (!homeSwState[motorID]) {
+			stepper[motorID].goUntil(action, dir, stepsPerSec);
+		}
 	}
 	else if (motorID == MOTOR_ID_ALL) {
 		for (uint8_t i = 0; i < NUM_OF_MOTOR; i++) {
-			stepper[i].goUntil(action, dir, stepsPerSec);
+			if (!homeSwState[i]) {
+				stepper[i].goUntil(action, dir, stepsPerSec);
+			}
 		}
 	}
 }
@@ -1552,12 +1558,12 @@ void checkStatus() {
 			if ( reportHiZ[i] ) sendTwoInt("/HiZ", i + 1, t);
 		}
 		// BUSY
-		//t = (status & STATUS_BUSY) > 0;
-		//if (busy[i] != t)
-		//{
-		//	busy[i] = t;
-		//	if ( reportBUSY[i] ) sendTwoData("/busy", i + 1, t);
-		//}
+		t = (status & STATUS_BUSY) == 0;
+		if (busy[i] != t)
+		{
+			busy[i] = t;
+			if ( reportBUSY[i] ) sendTwoInt("/busy", i + 1, t);
+		}
 
 		// DIR
 		t = (status & STATUS_DIR) > 0;
