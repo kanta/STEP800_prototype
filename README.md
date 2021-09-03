@@ -1,4 +1,11 @@
 # STEP800_prototype
+
+This repository has been retained for data storage, but is no longer being updated.
+
+Plese visit https://github.com/ponoor/STEP800.
+
+---
+
 ![STEP800](http://ponoor.com/data/img/STEP800/STEP800_proto_r3.JPG)
 
 8 axis stepper motor driver board which can control over Ethernet. The current firmware is based on [Open Sound Control](http://opensoundcontrol.org/) protocol.
