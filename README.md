@@ -2,7 +2,7 @@
 
 This repository has been retained for data storage, but is no longer being updated.
 
-Plese visit https://github.com/ponoor/STEP800.
+Please visit https://github.com/ponoor/STEP800.
 
 ---
 
